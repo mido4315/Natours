@@ -8,6 +8,7 @@ exports.getAllUsers = (req, res) => {
     message: 'route not finished yet',
   });
 };
+
 exports.createUser = (req, res) => {
   res.status(500).json({
     message: 'route not finished yet',
