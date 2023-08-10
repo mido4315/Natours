@@ -1,5 +1,5 @@
 const Tour = require('../models/tourModel');
-
+const APIFeatures = require('../utils/apiFeatures');
 // read tours from file
 // const tours = JSON.parse(
 //   fs.readFileSync(`${__dirname}/../dev-data/data/tours-simple.json`)
@@ -26,9 +26,25 @@ const Tour = require('../models/tourModel');
 //   next();
 // };
 
+exports.topCheapest = (req, res, next) => {
+  req.query.limit = '5';
+  req.query.sort = '-ratingsAverage,price';
+  req.query.fields = 'name,price,ratingsAverage,summary,difficulty';
+  next();
+};
+
+// EXPORTS THE FUNCTION TO GET ALL TOURS
 exports.getAllTours = async (req, res) => {
   try {
-    const tours = await Tour.find();
+    const apiFeatures = new APIFeatures(Tour.find(), req.query)
+      .filter()
+      .sort()
+      .limit()
+      .paginate();
+    // Execute the final query to get all tours
+    const tours = await apiFeatures.query;
+
+    // SEND RESPONSE
     res.status(200).json({
       status: 'success',
       results: tours.length,
@@ -37,6 +53,7 @@ exports.getAllTours = async (req, res) => {
       },
     });
   } catch (error) {
+    // IN CASE OF AN ERROR
     res.status(400).json({
       status: 'fail',
       data: {
@@ -100,7 +117,7 @@ exports.updateTour = async (req, res) => {
       },
     });
   } catch (error) {
-    res.status(400).json({
+    res.status(404).json({
       status: 'fail',
       data: {
         message: error,
@@ -111,11 +128,38 @@ exports.updateTour = async (req, res) => {
 
 exports.deleteTour = async (req, res) => {
   try {
-    const tour = await Tour.findByIdAndRemove(req.params.id);
+    await Tour.findByIdAndRemove(req.params.id);
+    res.status(200).json({
+      status: 'success',
+      data: null,
+    });
+  } catch (error) {
+    res.status(400).json({
+      status: 'fail',
+      data: {
+        message: error,
+      },
+    });
+  }
+};
+
+exports.getTourStatus = async (req, res) => {
+  try {
+    const stats = await Tour.aggregate([
+      {
+        $group: {
+          _id: null,
+          avgRating: { $avg: '$ratingsAverage' },
+          avgPrice: { $avg: '$price' },
+          minPrice: { $min: '$price' },
+          maxPrice: { $max: '$price' },
+        },
+      },
+    ]);
     res.status(200).json({
       status: 'success',
       data: {
-        tour,
+        stats,
       },
     });
   } catch (error) {
